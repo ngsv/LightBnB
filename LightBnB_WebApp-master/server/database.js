@@ -3,9 +3,11 @@ const users = require('./json/users.json');
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  user: 'steve',
+  user: 'vagrant',
+  password: '123',
   host: 'localhost',
-  database: 'lightbnb'
+  database: 'lightbnb',
+  port: 5432
 });
 
 /// Users
@@ -82,7 +84,20 @@ exports.addUser = addUser;
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  return pool
+    .query(`
+      SELECT reservations.*, properties.*, AVG(rating) AS average_rating
+      FROM reservations
+      JOIN properties ON reservations.property_id = properties.id
+      JOIN property_reviews ON property_reviews.property_id = properties.id
+      WHERE reservations.guest_id = $1 AND reservations.start_date >= NOW()::DATE
+      GROUP BY reservations.id, properties.id
+      ORDER BY reservations.start_date
+      LIMIT $2`, [guest_id, limit])
+    .then(res => {
+      return res.rows;
+    })
+    .catch(err => console.log(err.message));
 };
 exports.getAllReservations = getAllReservations;
 
